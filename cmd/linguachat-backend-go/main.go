@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 
+	"github.com/JohnSalinas123/linguachat-backend-go/internal/clerk"
 	"github.com/JohnSalinas123/linguachat-backend-go/internal/database"
-	"github.com/gin-gonic/gin"
+	"github.com/JohnSalinas123/linguachat-backend-go/internal/routes"
 	"github.com/joho/godotenv"
 )
 
@@ -19,7 +19,7 @@ func main() {
 		log.Fatalf("Error loading .env file")
 	}
 
-	// postgres connection string
+	// postgres connection
 	dbUser := os.Getenv("DB_USER")
 	dbPass := os.Getenv("DB_PASS")
 	dbHost := os.Getenv("DB_HOST")
@@ -34,26 +34,12 @@ func main() {
 		log.Fatalf("Failed to connect to the database: %v", err)
 	}
 
-	
-	router := gin.Default()
-	router.GET("/api/users", getUsersHandler)
-	//router.POST("/api/chat", storage.postChatCreateNew)
-
-	router.Run("localhost:8080")
-
-}
-
-func getUsersHandler(c *gin.Context) {
-
-	// access database instance
-	db := database.GetPostgresConn()
-
-	users, err := db.GetUsers(context.Background())
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch users"})
+	// clerk setup
+	if err:= clerk.InitialClerkSetup(os.Getenv("CLERK_SECRET"));err != nil {
+		log.Fatalf("Failed to complete clerk setup: %v", err)
 	}
-
-	c.IndentedJSON(http.StatusOK, users)
+	
+	routes.RunGin()
 
 }
 
