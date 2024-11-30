@@ -8,12 +8,11 @@ import (
 )
 
 // user table
-
 type User struct {
 	ID				string			`json:"id"`
-	Username		sql.NullString	`json:"username"`
+	Username		string	`json:"username"`
 	Email			string			`json:"email"`
-	Language		sql.NullString	`json:"language"`
+	Language		sql.NullString	`json:"lang"`
 	CreatedAt		time.Time		`json:"created_at"`
 }
 
