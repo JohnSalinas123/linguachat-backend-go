@@ -4,24 +4,32 @@ import (
 	"fmt"
 
 	clerkSDK "github.com/clerk/clerk-sdk-go/v2"
+	svix "github.com/svix/svix-webhooks/go"
 )
 
-/*
-type clerkKeys struct {
-	publicKey string
-	privateKey string
-}
+var webhookVerifier *svix.Webhook
 
-var (
-	keys *clerkKeys
-)
-*/
+// intialClerkSetup returns error or nil
+// intial setup of clerk, sets secret key for session validation
+// and intializes svix secret to handle clerk webhook requests
+func InitialClerkSetup(clerkSecret string, clerkWHSecret string) error {
 
-func InitialClerkSetup(secretKey string) error {
-	if secretKey == "" {
-		return fmt.Errorf("clerk secrey key is empty")
+	// set clerk secret
+	if clerkSecret == "" {
+		return fmt.Errorf("clerk secret secret is empty")
 	}
+	clerkSDK.SetKey(clerkSecret)
 
-	clerkSDK.SetKey(secretKey)
+
+	// set svix secret
+	if clerkWHSecret == "" {
+		return fmt.Errorf(("clerk webhook secret is empty"))
+	}
+	wh, err := svix.NewWebhook(clerkWHSecret)
+	if err != nil {
+		return fmt.Errorf("failed to intialize webhook verifier: %w", err)
+	}
+	webhookVerifier = wh
+
 	return nil
 }

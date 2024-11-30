@@ -35,7 +35,9 @@ func main() {
 	}
 
 	// clerk setup
-	if err:= clerk.InitialClerkSetup(os.Getenv("CLERK_SECRET"));err != nil {
+	clerkSecret := os.Getenv("CLERK_SECRET")
+	clerkWHSecret := os.Getenv("CLERK_WH_SECRET")
+	if err:= clerk.InitialClerkSetup(clerkSecret, clerkWHSecret);err != nil {
 		log.Fatalf("Failed to complete clerk setup: %v", err)
 	}
 	

@@ -3,15 +3,24 @@ module github.com/JohnSalinas123/linguachat-backend-go
 go 1.23.3
 
 require (
+	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-gonic/gin v1.10.0
+	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/jackc/pgx-gofrs-uuid v0.0.0-20230224015001-1d428863c2e2
 	github.com/jackc/pgx/v5 v5.0.0-alpha.1.0.20220402194133-53ec52aa174c
 	github.com/joho/godotenv v1.5.1
+	github.com/svix/svix-webhooks v1.41.0
+)
+
+require (
+	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
+	gopkg.in/validator.v2 v2.0.1 // indirect
 )
 
 require (
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
+	github.com/clerk/clerk-sdk-go/v2 v2.2.0
 	github.com/cloudwego/base64x v0.1.4 // indirect
 	github.com/cloudwego/iasm v0.2.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
