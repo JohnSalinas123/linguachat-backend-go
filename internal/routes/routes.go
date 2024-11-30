@@ -1,14 +1,10 @@
 package routes
 
 import (
-	"fmt"
-	"net/http"
-
-	"github.com/clerk/clerk-sdk-go/v2"
-	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
 	"github.com/gin-contrib/cors"
 
 	"github.com/JohnSalinas123/linguachat-backend-go/api/handler"
+	"github.com/JohnSalinas123/linguachat-backend-go/internal/clerk"
 	"github.com/gin-gonic/gin"
 )
 
@@ -25,46 +21,27 @@ func RunGin() {
 	router.Use(cors.New(config))
 
 	getRoutes()
-	router.Run(":8080")
+	router.Run("localhost:8080")
 }
 
 func getRoutes() {
 
+	// authorized endpoints
 	authorized := router.Group("/api")
-	authorized.Use(ClerkMiddleware()) 
+	authorized.Use(clerk.ClerkAuthMiddleware()) 
 	{
 
 		authorized.POST("/users", handler.GetUsersHandler)
+		authorized.GET("/chats", handler.GetChatsHandler)
 
 	}
-
 
 	// clerk webhooks
-	//authorizedClerkWebHooks := router.Group("/api/webhook")
-	//authorizedClerkWebHooks.Use()
-
-
-	
-
-	
-
-}
-
-func ClerkMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		clerkhttp.RequireHeaderAuthorization()(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			c.Request = r
-			c.Next()
-		})).ServeHTTP(c.Writer, c.Request)
-
-		claims, ok := clerk.SessionClaimsFromContext(c.Request.Context())
-		if !ok || claims.Subject == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			c.Abort()
-			return
-		}
-		fmt.Println(claims)
-		c.Next()
+	authorizedClerkWebHooks := router.Group("/api/clerk/webhook")
+	authorizedClerkWebHooks.Use(clerk.ClerkWebhookAuthMiddleware())
+	{
+		authorizedClerkWebHooks.POST("/newuser", handler.NewUserHandler)
 	}
+
 }
 
