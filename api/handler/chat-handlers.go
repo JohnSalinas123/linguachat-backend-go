@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -11,8 +10,6 @@ import (
 )
 
 func GetChatsHandler(c *gin.Context) {
-
-	fmt.Println("getchat handler")
 
 	// access database instance
 	db := database.GetPostgresConn()
@@ -39,6 +36,21 @@ func GetChatsHandler(c *gin.Context) {
 	}
 
 	c.IndentedJSON(http.StatusOK, chatsResponse)
-	
 
 }
+
+/*
+func GetChatMessagesHandler(c *gin.Context) {
+
+	// access database instance
+	db := database.GetPostgresConn()
+
+	userIDAny, exists := c.Get("userID")
+	if !exists {
+		log.Println("user_id missing")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+}
+*/

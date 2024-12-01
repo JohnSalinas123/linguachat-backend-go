@@ -173,6 +173,37 @@ func (pg *postgres) GetChats(ctx context.Context, userID string) ([]models.ChatR
 
 }
 
+// GetChatMessages responds with a slice of Messages given a specific ChatID
+func (pg *postgres) GetChatMessages(ctx context.Context, chatID string, pageNum int) ([]models.ChatMessagesResponse , error) {
+
+
+	messagesQuery :=`SELECT id, sender_id, content, created_at FROM message
+					WHERE chat_id=$1
+					ORDER BY created_at DESC
+					LIMIT 10 OFFSET $2`
+
+	rows, err := pg.db.Query(ctx, messagesQuery, chatID, 10*pageNum)
+	if err != nil {
+		return nil, fmt.Errorf("unable to query chatIds: %w", err)
+	}
+
+	var chatMessages []models.ChatMessagesResponse
+	for rows.Next() {
+
+		var msg models.ChatMessagesResponse
+		err = rows.Scan(&msg.ID, &msg.SenderID, &msg.Content, &msg.CreatedAt)
+		if err != nil {
+			return nil, fmt.Errorf("unable to scan row: %w", err)
+		}
+
+		chatMessages = append(chatMessages, msg)
+
+	}
+
+	return chatMessages, nil
+
+}
+
 // postChatCreateNew creates a new Chat and ChatParticipant for a user
 //func (appCtx *AppContext) postChatCreateNew(c *gin.Context) {
 
