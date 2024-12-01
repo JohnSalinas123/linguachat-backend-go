@@ -98,7 +98,17 @@ func (pg *postgres) CreateUser(ctx context.Context, newUser *models.User) (model
 
 // GetChats responds with a slice of ChatResponse
 func (pg *postgres) GetChats(ctx context.Context, userID string) ([]models.ChatResponse, error) {
-	
+
+	// QUERY: retrieve user's lang_code
+	userLangQuery := `SELECT lang_code FROM user_account WHERE id=$1`
+
+	var userLangCode string
+	userLangErr := pg.db.QueryRow(ctx, userLangQuery, userID).Scan(&userLangCode)
+	if userLangErr != nil {
+		return nil, fmt.Errorf("unable to query user's language: %w", userLangErr)
+	}
+	userLangCode = "{" + userLangCode + "}"
+
 	// QUERY: retrieve chat ids user is a part of
 	chatIdsQuery := `SELECT id FROM chat where id in (SELECT chat_id FROM chat_participant WHERE user_id = $1)`
 
@@ -152,14 +162,30 @@ func (pg *postgres) GetChats(ctx context.Context, userID string) ([]models.ChatR
 
 		// QUERY: retrive last message and last message time
 		// assign to ChatReponse LastMessage, LastMessageTime
-		lastMessageQuery := `SELECT message.content as last_message, message.created_at as last_message_time FROM message WHERE message.chat_id = $1 ORDER BY message.created_at DESC LIMIT 1`
+		lastMessageQuery := `SELECT 
+			CASE
+				WHEN m.lang_code != $1 THEN t.content
+				ELSE m.content
+			END AS last_message,
+			m.created_at AS last_message_time
+		FROM 
+			message m
+		JOIN 
+			translation t
+		ON 
+			m.id = t.message_id AND t.lang_code = $2
+		WHERE 
+			m.chat_id= $3
+		ORDER BY 
+			m.created_at DESC LIMIT 1`
 
-		row := pg.db.QueryRow(ctx, lastMessageQuery, chatIDStr)
 		var lastMessage string
-		var lastMessageTime time.Time
-		lastmsg_err := row.Scan(&lastMessage, &lastMessageTime)
-		if lastmsg_err != nil {
-			return nil, fmt.Errorf("unable to query last chat message: %w", err)
+		var lastMessageTime time.Time	
+		lastMessageErr := pg.db.QueryRow(ctx, lastMessageQuery, userLangCode, userLangCode, chatIDStr).Scan(&lastMessage, &lastMessageTime)
+		
+		//lastmsg_err := row.Scan(&lastMessage, &lastMessageTime)
+		if lastMessageErr != nil {
+			return nil, fmt.Errorf("unable to query last chat message: %w", lastMessageErr)
 		}
 		chatResponse.LastMessage = lastMessage
 		chatResponse.LastMessageTime = lastMessageTime
