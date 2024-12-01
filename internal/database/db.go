@@ -204,6 +204,25 @@ func (pg *postgres) GetChatMessages(ctx context.Context, chatID string, pageNum 
 
 }
 
+func (pg *postgres) GetUserLanguageExists(ctx context.Context, userID string) (bool, error) {
+
+	userLangQuery := `SELECT
+	CASE 
+		WHEN lang_code IS NULL THEN false
+		ELSE true
+	END AS lang_code_set
+	FROM public.user_account
+	WHERE id=$1`
+	var userLangSet bool
+	err := pg.db.QueryRow(ctx, userLangQuery, userID).Scan(&userLangSet)
+	if err != nil {
+		return false, fmt.Errorf("unable to scan row: %w", err)
+	}
+
+	return userLangSet, nil
+
+}
+
 // postChatCreateNew creates a new Chat and ChatParticipant for a user
 //func (appCtx *AppContext) postChatCreateNew(c *gin.Context) {
 

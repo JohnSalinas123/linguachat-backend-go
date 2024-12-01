@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"log"
 	"net/http"
 	"time"
 
@@ -121,4 +122,34 @@ func NewUserHandler(c *gin.Context) {
 	}
 
 	c.IndentedJSON(http.StatusOK, createdUser)
+}
+
+func CheckUserLanguageSet(c *gin.Context) {
+
+	// access database instance
+	db := database.GetPostgresConn()
+
+	userIDAny, exists := c.Get("userID")
+	if !exists {
+		log.Println("user_id missing")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	userID, ok := userIDAny.(string)
+	if !ok {
+		log.Println("Failed to convert user_id to string")
+		c.JSON(http.StatusInternalServerError, gin.H{"error":"Invalid request"})
+		return
+	}
+
+	userLanguageExists, dbError := db.GetUserLanguageExists(context.Background(), userID)
+	if dbError != nil {
+		log.Println("Failed to query user language: %w", dbError)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to retrieve user language status"})
+		return
+	}
+
+	c.IndentedJSON(http.StatusOK, gin.H{"languageSet": userLanguageExists})
+
 }
