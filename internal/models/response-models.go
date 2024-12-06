@@ -12,10 +12,11 @@ type ChatResponse struct {
 }
 
 // type ChatMessagesResponse for sending chat messages data
-type ChatMessagesResponse struct {
+type MessagesResponse struct {
 	ID 			string 		`json:"id"`
 	SenderID	string		`json:"sender_id"`
 	Content		string		`json:"content"`
 	CreatedAt	time.Time	`json:"created_at"`
+	LangCode	string		`json:"lang_code"`
 }
 
