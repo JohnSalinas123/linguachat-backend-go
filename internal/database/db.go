@@ -10,6 +10,7 @@ import (
 
 	"github.com/JohnSalinas123/linguachat-backend-go/internal/models"
 	"github.com/gofrs/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -21,6 +22,10 @@ var (
 	pgConn	*postgres
 	pgOnce	sync.Once
 )
+
+func (pg * postgres) Pool() *pgxpool.Pool {
+	return pg.db
+}
 
 func ConnectToPostgre(ctx context.Context, connString string) (*postgres, error) {
 	pgOnce.Do(func() {
@@ -77,7 +82,7 @@ func (pg *postgres) GetUsers(ctx context.Context) ([]models.User,  error) {
 // NewUser creates a new user row
 func (pg *postgres) CreateUser(ctx context.Context, newUser *models.User) (models.User, error) {
 
-	query := `INSERT INTO user_account (id, created_at, email, lang, username) VALUES ($1, $2, $3, $4, $5)`
+	query := `INSERT INTO user_account (id, created_at, email, lang_code, username) VALUES ($1, $2, $3, $4, $5)`
 
 	fmt.Println(newUser.ID)
 	fmt.Println(newUser.CreatedAt)
@@ -195,39 +200,71 @@ func (pg *postgres) GetChats(ctx context.Context, userID string) ([]models.ChatR
 
 	}
 
-	return chatResponseArray, nil
+	if len(chatResponseArray) == 0 {
+		return []models.ChatResponse{}, nil
+	}
 
+	return chatResponseArray, nil
 }
 
 // GetChatMessages responds with a slice of Messages given a specific ChatID
-func (pg *postgres) GetChatMessages(ctx context.Context, chatID string, pageNum int) ([]models.ChatMessagesResponse , error) {
+func (pg *postgres) GetChatMessages(ctx context.Context	,langCode string, chatID string, pageNum int,) ([]models.MessagesResponse , error) {
 
 
-	messagesQuery :=`SELECT id, sender_id, content, created_at FROM message
+	/*
+	messagesQuery :=`SELECT id, sender_id, content, created_at, lang_code FROM message
 					WHERE chat_id=$1
-					ORDER BY created_at DESC
+					ORDER BY created_at ASC
 					LIMIT 10 OFFSET $2`
+	*/
 
-	rows, err := pg.db.Query(ctx, messagesQuery, chatID, 10*pageNum)
+	
+
+	messagesQuery := `SELECT m.id, m.sender_id,
+		CASE
+			WHEN m.lang_code != $1 THEN t.content
+			ELSE m.content
+		END AS content,
+		m.created_at,
+		m.lang_code
+		FROM 
+			message m
+		LEFT JOIN 
+			translation t
+		ON 
+			m.id = t.message_id AND t.lang_code = $2
+		WHERE 
+			m.chat_id= $3
+		ORDER BY 
+			m.created_at ASC
+		LIMIT 10 OFFSET $4`
+
+	rows, err := pg.db.Query(ctx, messagesQuery,langCode, langCode, chatID, 10*pageNum)
 	if err != nil {
 		return nil, fmt.Errorf("unable to query chatIds: %w", err)
 	}
 
-	var chatMessages []models.ChatMessagesResponse
+	var chatMessages []models.MessagesResponse
 	for rows.Next() {
 
-		var msg models.ChatMessagesResponse
-		err = rows.Scan(&msg.ID, &msg.SenderID, &msg.Content, &msg.CreatedAt)
+		var msg models.MessagesResponse
+		var	MessageID uuid.UUID
+
+		err = rows.Scan(&MessageID, &msg.SenderID, &msg.Content, &msg.CreatedAt, &msg.LangCode)
 		if err != nil {
 			return nil, fmt.Errorf("unable to scan row: %w", err)
 		}
+
+		// convert MessageID uuid.UUID into string
+		MessageIDStr := MessageID.String()
+		msg.ID = MessageIDStr
+		
 
 		chatMessages = append(chatMessages, msg)
 
 	}
 
 	return chatMessages, nil
-
 }
 
 func (pg *postgres) GetUserLanguageExists(ctx context.Context, userID string) (bool, error) {
@@ -246,7 +283,18 @@ func (pg *postgres) GetUserLanguageExists(ctx context.Context, userID string) (b
 	}
 
 	return userLangSet, nil
+}
 
+func (pg *postgres) UpdateUserLanguage(ctx context.Context, tx pgx.Tx,  userID string, langCode string) (string, error) {
+
+	updateUserLangQuery := `UPDATE user_account SET lang_code=$1 WHERE id=$2`
+
+	_, err := tx.Exec(ctx, updateUserLangQuery, langCode, userID)
+	if err != nil {
+		return "", fmt.Errorf("unable to update user_account row's lang_code")
+	}
+
+	return langCode, nil
 }
 
 // postChatCreateNew creates a new Chat and ChatParticipant for a user
