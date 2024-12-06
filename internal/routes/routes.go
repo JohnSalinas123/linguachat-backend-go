@@ -30,10 +30,12 @@ func getRoutes() {
 	authorized := router.Group("/api")
 	authorized.Use(clerk.ClerkAuthMiddleware()) 
 	{
-
 		authorized.POST("/users", handler.GetUsersHandler)
-		authorized.GET("/chats", handler.GetChatsHandler)
+		authorized.POST("/user/language", handler.SetUserLanguageHandler)
 
+		authorized.GET("/chats", handler.GetChatsHandler)
+		authorized.GET("/chats/:chatID/messages", handler.GetChatMessagesHandler)
+		
 	}
 
 	// clerk webhooks
