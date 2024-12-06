@@ -68,7 +68,7 @@ func (pg *postgres) GetUsers(ctx context.Context) ([]models.User,  error) {
 	fmt.Println(users)
 	for rows.Next() {
 		user := models.User{}
-		err := rows.Scan(&user.ID,&user.CreatedAt,&user.Email,  &user.Language, &user.Username)
+		err := rows.Scan(&user.ID,&user.CreatedAt,&user.Email,  &user.LangCode, &user.Username)
 		if err != nil {
 			return nil, fmt.Errorf("unable to scan row: %w", err)
 		}
@@ -87,11 +87,11 @@ func (pg *postgres) CreateUser(ctx context.Context, newUser *models.User) (model
 	fmt.Println(newUser.ID)
 	fmt.Println(newUser.CreatedAt)
 	fmt.Println(newUser.Email)
-	fmt.Println(newUser.Language)
+	fmt.Println(newUser.LangCode)
 	fmt.Println(newUser.Username)
 
 	_, err := pg.db.Exec(ctx, query,
-		newUser.ID, newUser.CreatedAt, newUser.Email, newUser.Language, newUser.Username)
+		newUser.ID, newUser.CreatedAt, newUser.Email, newUser.LangCode, newUser.Username)
 	if err != nil {
 		return models.User{} ,fmt.Errorf("unable to insert new user row: %w", err)
 	}

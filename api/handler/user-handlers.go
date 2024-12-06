@@ -122,7 +122,7 @@ func NewUserHandler(c *gin.Context) {
 	newUser.Username = username
 	newUser.Email = firstEmail
 	newUser.CreatedAt = createdAt
-	newUser.Language = sql.NullString{String: "", Valid: false}
+	newUser.LangCode = sql.NullString{String: "", Valid: false}
 
 	createdUser, err := db.CreateUser(context.Background(), &newUser)
 	if err != nil {

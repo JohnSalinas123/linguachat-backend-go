@@ -10,9 +10,9 @@ import (
 // user table
 type User struct {
 	ID				string			`json:"id"`
-	Username		string	`json:"username"`
+	Username		string			`json:"username"`
 	Email			string			`json:"email"`
-	Language		sql.NullString	`json:"lang"`
+	LangCode		sql.NullString	`json:"lang_code"`
 	CreatedAt		time.Time		`json:"created_at"`
 }
 
