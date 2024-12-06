@@ -2,6 +2,7 @@ package clerk
 
 import (
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/clerk/clerk-sdk-go/v2"
@@ -20,6 +21,7 @@ func ClerkAuthMiddleware() gin.HandlerFunc {
 
 		claims, ok := clerk.SessionClaimsFromContext(c.Request.Context())
 		if !ok || claims.Subject == "" {
+			log.Println("Failed to retrieve session claims")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			c.Abort()
 			return
@@ -27,10 +29,9 @@ func ClerkAuthMiddleware() gin.HandlerFunc {
 
 		usr, err := user.Get(c.Request.Context(), claims.Subject)
 		if err != nil {
+			log.Println("Failed to retrieve session subject claim")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		}
-
-		println(usr.ID)
 
 		c.Set("userID", usr.ID)
 		c.Next()
