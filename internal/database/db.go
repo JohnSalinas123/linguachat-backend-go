@@ -236,7 +236,7 @@ func (pg *postgres) GetChatMessages(ctx context.Context	,langCode string, chatID
 		WHERE 
 			m.chat_id= $3
 		ORDER BY 
-			m.created_at ASC
+			m.created_at DESC
 		LIMIT 10 OFFSET $4`
 
 	rows, err := pg.db.Query(ctx, messagesQuery,langCode, langCode, chatID, 10*pageNum)
