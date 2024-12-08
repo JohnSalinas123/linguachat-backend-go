@@ -7,6 +7,7 @@ import (
 
 	"github.com/clerk/clerk-sdk-go/v2"
 	clerkhttp "github.com/clerk/clerk-sdk-go/v2/http"
+	clerkJWT "github.com/clerk/clerk-sdk-go/v2/jwt"
 	"github.com/clerk/clerk-sdk-go/v2/user"
 	"github.com/gin-gonic/gin"
 )
@@ -61,6 +62,46 @@ func ClerkWebhookAuthMiddleware() gin.HandlerFunc {
 		
 		c.Next()
 		
+
+	}
+}
+
+func WebSocketClerkAuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+
+		tokenStr := c.Query("token")
+		if tokenStr == "" {
+			log.Println("Token query empty or missing")
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.Abort()
+			return
+		}
+
+		claims, err := clerkJWT.Verify(c.Request.Context() , &clerkJWT.VerifyParams{
+			Token: tokenStr,
+		})
+ 
+		// parse and validate token
+		//log.Println(claims)
+		if err != nil {
+			log.Printf("Failed to parse or verify token %v", err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error":"Unauthorized"})
+			c.Abort()
+			return
+		}
+
+		usr, err := user.Get(c.Request.Context(), claims.Subject)
+		if err != nil {
+			log.Printf("Failed to get 'sub' claim: %v", err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error":"Unauthorized"})
+			c.Abort()
+			return
+		}
+
+		log.Println("Authenticated user:", usr.ID)
+		c.Set("userID", usr.ID)
+
+		c.Next()
 
 	}
 }
