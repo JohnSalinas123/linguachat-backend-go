@@ -269,7 +269,7 @@ func (pg *postgres) GetChatMessages(ctx context.Context	,langCode string, chatID
 
 func (pg *postgres) GetUserLanguageExists(ctx context.Context, userID string) (bool, error) {
 
-	userLangQuery := `SELECT
+	userLangExistsQuery := `SELECT
 	CASE 
 		WHEN lang_code IS NULL THEN false
 		ELSE true
@@ -277,12 +277,32 @@ func (pg *postgres) GetUserLanguageExists(ctx context.Context, userID string) (b
 	FROM public.user_account
 	WHERE id=$1`
 	var userLangSet bool
-	err := pg.db.QueryRow(ctx, userLangQuery, userID).Scan(&userLangSet)
+	err := pg.db.QueryRow(ctx, userLangExistsQuery, userID).Scan(&userLangSet)
 	if err != nil {
 		return false, fmt.Errorf("unable to scan row: %w", err)
 	}
 
 	return userLangSet, nil
+}
+
+func (pg *postgres) GetUserLangCode(ctx context.Context, userID string) (string, error) {
+
+	userLangCodeQuery := `SELECT lang_code
+	FROM public.user_account
+	WHERE id=$1`
+
+	var userLangCode string
+	err := pg.db.QueryRow(ctx, userLangCodeQuery, userID).Scan(&userLangCode)
+	if err != nil {
+		return "", fmt.Errorf("unable to retrieve or scan user lang code: %w", err)
+	}
+
+	if userLangCode == "" {
+		return "", fmt.Errorf("user lang_code is empty or missing")
+	}
+
+	return userLangCode, nil
+	
 }
 
 func (pg *postgres) UpdateUserLanguage(ctx context.Context, tx pgx.Tx,  userID string, langCode string) (string, error) {
