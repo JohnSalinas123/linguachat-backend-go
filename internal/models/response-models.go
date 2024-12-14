@@ -2,6 +2,8 @@ package models
 
 import (
 	"time"
+
+	"github.com/gofrs/uuid"
 )
 
 type ChatResponse struct {
@@ -12,8 +14,10 @@ type ChatResponse struct {
 }
 
 // type ChatMessagesResponse for sending chat messages data
-type MessagesResponse struct {
-	ID 			string 		`json:"id"`
+type MessageResponse struct {
+	ID 			uuid.UUID 		`json:"id"`
+	ChatID		uuid.UUID		`json:"chat_id"`
+	SenderUsername string	`json:"sender_username"`
 	SenderID	string		`json:"sender_id"`
 	Content		string		`json:"content"`
 	CreatedAt	time.Time	`json:"created_at"`
