@@ -12,7 +12,7 @@ type Hub struct {
 	// registered clients, mapped by chatID
 	chats map[uuid.UUID]map[*Client]bool
 
-	broadcast chan models.Message
+	broadcast chan models.MessageResponse
 
 	register chan *Client
 
@@ -21,7 +21,7 @@ type Hub struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		broadcast:  make(chan models.Message),
+		broadcast:  make(chan models.MessageResponse),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		chats:    make(map[uuid.UUID]map[*Client]bool),
@@ -53,7 +53,7 @@ func (h *Hub) Run() {
 			}
 
 			chat[client]= true
-			log.Printf("User %s connected to chat %s", client.userID, client.chatID)
+			log.Printf("User{%s} %s connected to chat %s", client.langCode, client.userID, client.chatID)
 			
 		// unregister clients
 		case client := <-h.unregister:
@@ -82,8 +82,7 @@ func (h *Hub) Run() {
 				}
 
 
-				for client := range chat {
-
+				for client := range chat { 
 
 					select {
 						case client.send <- messageBytes:
