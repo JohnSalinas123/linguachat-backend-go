@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"os"
@@ -208,7 +209,7 @@ func (pg *postgres) GetChats(ctx context.Context, userID string) ([]models.ChatR
 }
 
 // GetChatMessages responds with a slice of Messages given a specific ChatID
-func (pg *postgres) GetChatMessages(ctx context.Context	,langCode string, chatID string, pageNum int,) ([]models.MessagesResponse , error) {
+func (pg *postgres) GetChatMessages(ctx context.Context	,langCode string, chatID string, pageNum int,) ([]models.MessageResponse , error) {
 
 
 	/*
@@ -220,44 +221,48 @@ func (pg *postgres) GetChatMessages(ctx context.Context	,langCode string, chatID
 
 	
 
-	messagesQuery := `SELECT m.id, m.sender_id,
+	messagesQuery := `SELECT m.id, m.chat_id, u.username AS sender_username, m.sender_id,
 		CASE
-			WHEN m.lang_code != $1 THEN t.content
+			WHEN m.lang_code != $1 AND t.content IS NOT NULL THEN t.content
 			ELSE m.content
 		END AS content,
 		m.created_at,
-		m.lang_code
+		CASE
+			WHEN m.lang_code != $2 AND t.content IS NOT NULL THEN t.lang_code
+			ELSE m.lang_code
+		END AS lang_code
 		FROM 
 			message m
+		JOIN user_account u
+		ON m.sender_id = u.id
 		LEFT JOIN 
 			translation t
 		ON 
-			m.id = t.message_id AND t.lang_code = $2
+			m.id = t.message_id AND t.lang_code = $3
 		WHERE 
-			m.chat_id= $3
+			m.chat_id= $4
 		ORDER BY 
-			m.created_at ASC
-		LIMIT 10 OFFSET $4`
+			m.created_at DESC
+		LIMIT 10 OFFSET $5`
 
-	rows, err := pg.db.Query(ctx, messagesQuery,langCode, langCode, chatID, 10*pageNum)
+	rows, err := pg.db.Query(ctx, messagesQuery,langCode, langCode, langCode, chatID, 10*pageNum)
 	if err != nil {
 		return nil, fmt.Errorf("unable to query chatIds: %w", err)
 	}
 
-	var chatMessages []models.MessagesResponse
+	var chatMessages []models.MessageResponse
 	for rows.Next() {
 
-		var msg models.MessagesResponse
+		var msg models.MessageResponse
 		var	MessageID uuid.UUID
 
-		err = rows.Scan(&MessageID, &msg.SenderID, &msg.Content, &msg.CreatedAt, &msg.LangCode)
+		err = rows.Scan(&MessageID, &msg.ChatID, &msg.SenderUsername, &msg.SenderID, &msg.Content, &msg.CreatedAt, &msg.LangCode)
 		if err != nil {
 			return nil, fmt.Errorf("unable to scan row: %w", err)
 		}
 
 		// convert MessageID uuid.UUID into string
-		MessageIDStr := MessageID.String()
-		msg.ID = MessageIDStr
+		msg.ID = MessageID
 		
 
 		chatMessages = append(chatMessages, msg)
@@ -267,9 +272,36 @@ func (pg *postgres) GetChatMessages(ctx context.Context	,langCode string, chatID
 	return chatMessages, nil
 }
 
+// CreateMessage creates a new user row
+func (pg *postgres) CreateMessage(ctx context.Context, newMessage *models.MessageResponse) (models.MessageResponse, error) {
+
+	newUUID, err := uuid.NewV4()
+	if err != nil {
+		return models.MessageResponse{}, fmt.Errorf("unable to generate uuid %w", err)
+	}
+
+	newMessage.ID = newUUID
+
+	log.Printf("New Message UUID: %T : %v ", newMessage.ID, newMessage.ID)
+	log.Printf("Chat UUID: %T : %v ", newMessage.ChatID, newMessage.ChatID)
+
+
+	query := `INSERT INTO message (id, chat_id, sender_id, content, created_at, lang_code) VALUES ($1::UUID, $2::UUID, $3, $4, $5, $6)`
+
+
+	_, err = pg.db.Exec(ctx, query,
+		newMessage.ID.String(), newMessage.ChatID.String(), newMessage.SenderID, newMessage.Content, time.Now(), newMessage.LangCode)
+	if err != nil {
+		return models.MessageResponse{} ,fmt.Errorf("unable to insert new user row: %w", err)
+	}
+
+	return *newMessage, nil
+
+}
+
 func (pg *postgres) GetUserLanguageExists(ctx context.Context, userID string) (bool, error) {
 
-	userLangQuery := `SELECT
+	userLangExistsQuery := `SELECT
 	CASE 
 		WHEN lang_code IS NULL THEN false
 		ELSE true
@@ -277,12 +309,32 @@ func (pg *postgres) GetUserLanguageExists(ctx context.Context, userID string) (b
 	FROM public.user_account
 	WHERE id=$1`
 	var userLangSet bool
-	err := pg.db.QueryRow(ctx, userLangQuery, userID).Scan(&userLangSet)
+	err := pg.db.QueryRow(ctx, userLangExistsQuery, userID).Scan(&userLangSet)
 	if err != nil {
 		return false, fmt.Errorf("unable to scan row: %w", err)
 	}
 
 	return userLangSet, nil
+}
+
+func (pg *postgres) GetUserLangCode(ctx context.Context, userID string) (string, error) {
+
+	userLangCodeQuery := `SELECT lang_code
+	FROM public.user_account
+	WHERE id=$1`
+
+	var userLangCode string
+	err := pg.db.QueryRow(ctx, userLangCodeQuery, userID).Scan(&userLangCode)
+	if err != nil {
+		return "", fmt.Errorf("unable to retrieve or scan user lang code: %w", err)
+	}
+
+	if userLangCode == "" {
+		return "", fmt.Errorf("user lang_code is empty or missing")
+	}
+
+	return userLangCode, nil
+	
 }
 
 func (pg *postgres) UpdateUserLanguage(ctx context.Context, tx pgx.Tx,  userID string, langCode string) (string, error) {

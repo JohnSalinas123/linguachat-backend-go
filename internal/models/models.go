@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"time"
 
-	uuid "github.com/jackc/pgx-gofrs-uuid"
+	"github.com/gofrs/uuid"
 )
 
 // user table
@@ -31,8 +31,8 @@ type ChatParticipant struct {
 type Message struct {
 	ID			uuid.UUID	`json:"id"`
 	ChatID		uuid.UUID	`json:"chat_id"`
-	SenderID	uuid.UUID	`json:"sender_id"`
+	SenderID	string	`json:"sender_id"`
 	Content		string		`json:"content"`
-	Translation	string		`json:"translation"`
-	Timestamp	time.Time	`json:"timestamp"`		
+	CreatedAt	time.Time	`json:"created_at"`
+	LangCode	string      `json:"lang_code"`		
 }

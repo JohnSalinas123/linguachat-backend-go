@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/JohnSalinas123/linguachat-backend-go/internal/database"
@@ -85,7 +86,8 @@ func GetChatMessagesHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error":"Internal server error"})
 	}
 
-	log.Println(messagesResponse)
+	// reverse the orderof messagesResponse slice
+	slices.Reverse(messagesResponse)
 
 	c.JSON(http.StatusOK, messagesResponse)
 
