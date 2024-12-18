@@ -349,6 +349,38 @@ func (pg *postgres) UpdateUserLanguage(ctx context.Context, tx pgx.Tx,  userID s
 	return langCode, nil
 }
 
+func (pg *postgres) CreateInvite(ctx context.Context, userID string) (string, error) {
+
+	// generate invite code
+	inviteCode, err := uuid.NewV4()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate invite code: %w", err)
+	}
+
+	// save invite to db
+	inviteUUID, err := uuid.NewV4()
+	if err != nil {
+		return "", fmt.Errorf("failed to generate invite UUID: %w", err)
+	}
+
+	
+	createInviteQuery := `INSERT INTO invite (id, invite_code, chat_id, creator_id, created_at, exp_date, consumed, consumed_at) 
+	VALUES ($1::UUID, $2, $3::UUID, $4, $5, $6, $7, $8)`
+
+	// create exp date of 7 days from now
+	now := time.Now().UTC()
+	expDate := now.AddDate(0,0,7)
+
+
+	_, err = pg.db.Exec(ctx, createInviteQuery, inviteUUID.String(), inviteCode, nil , userID, now, expDate, false, nil )
+	if err != nil {
+		return "" ,fmt.Errorf("unable to insert new invite row: %w", err)
+	}
+	
+	return inviteCode.String(), nil
+
+}
+
 // postChatCreateNew creates a new Chat and ChatParticipant for a user
 //func (appCtx *AppContext) postChatCreateNew(c *gin.Context) {
 

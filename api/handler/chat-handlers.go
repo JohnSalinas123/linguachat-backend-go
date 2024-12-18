@@ -2,8 +2,10 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 
@@ -91,4 +93,48 @@ func GetChatMessagesHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, messagesResponse)
 
+}
+
+func PostNewInviteHandler(c *gin.Context) {
+
+	// access database instance
+	db := database.GetPostgresConn()
+
+	userIDAny, exists := c.Get("userID")
+	if !exists {
+		log.Println("user_id missing")
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	userID, ok := userIDAny.(string)
+	if !ok {
+		log.Println("Failed to convert user_id to string")
+		c.JSON(http.StatusInternalServerError, gin.H{"error":"Invalid request"})
+		return
+	}
+
+	inviteCode, dbError := db.CreateInvite(context.Background(), userID) 
+	if dbError != nil {
+		log.Println("Failed to create new invite: %w", dbError)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to create new chat invite"})
+		return
+	}
+
+	baseURL := os.Getenv("DEV_DOMAIN")
+	if baseURL == "" {
+		log.Println("Failed to load base url")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
+	inviteURL := fmt.Sprintf("%s/invite/%s", baseURL, inviteCode)
+	if inviteURL == "" {
+		log.Println("Failed to build invite url string")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+	
+	c.JSON(http.StatusOK, gin.H{"invite_url": inviteURL})
+	
 }
