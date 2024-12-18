@@ -140,6 +140,7 @@ func WebSocketClerkAuthMiddleware() gin.HandlerFunc {
 
 		claims, err := clerkJWT.Verify(c.Request.Context() , &clerkJWT.VerifyParams{
 			Token: tokenStr,
+			Leeway: 1*time.Second,
 		})
  
 		// parse and validate token
