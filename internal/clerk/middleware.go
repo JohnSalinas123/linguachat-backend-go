@@ -21,8 +21,14 @@ func ClerkAuthMiddleware() gin.HandlerFunc {
 		sessionToken := strings.TrimPrefix(c.Request.Header.Get("Authorization"), "Bearer ")
 		log.Println(sessionToken)
 
+		if sessionToken == "" {
+			log.Println("Missing Authorization header")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Missing auth header"})
+			return
+		}
+
 		parts := strings.Split(sessionToken, ".")
-		
+
 		payload, err := base64.RawURLEncoding.DecodeString(parts[1])
 		
 		var claims map[string]interface{}
