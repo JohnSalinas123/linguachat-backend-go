@@ -24,3 +24,9 @@ type MessageResponse struct {
 	LangCode	string		`json:"lang_code"`
 }
 
+type InviteResponse struct {
+	InviteExists		bool	`json:"invite_exists"`
+	InviteCode			string	`json:"invite_code"`
+	Username 			string	`json:"username"`
+}
+

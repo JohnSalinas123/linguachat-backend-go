@@ -168,7 +168,27 @@ func (pg *postgres) GetChats(ctx context.Context, userID string) ([]models.ChatR
 
 		// QUERY: retrive last message and last message time
 		// assign to ChatReponse LastMessage, LastMessageTime
+
 		lastMessageQuery := `SELECT 
+			CASE
+				WHEN t.content IS NOT NULL THEN t.content
+				ELSE m.content
+			END AS last_message,
+			m.created_at AS last_message_time
+		FROM 
+			message m
+		LEFT JOIN 
+			translation t
+		ON 
+			m.id = t.message_id AND t.lang_code = $1
+		WHERE 
+			m.chat_id = $2
+		ORDER BY 
+			m.created_at DESC
+		LIMIT 1;`
+
+		/*
+		lastMessageQueryOld := `SELECT 
 			CASE
 				WHEN m.lang_code != $1 THEN t.content
 				ELSE m.content
@@ -184,17 +204,22 @@ func (pg *postgres) GetChats(ctx context.Context, userID string) ([]models.ChatR
 			m.chat_id= $3
 		ORDER BY 
 			m.created_at DESC LIMIT 1`
+		*/
 
 		var lastMessage string
 		var lastMessageTime time.Time	
-		lastMessageErr := pg.db.QueryRow(ctx, lastMessageQuery, userLangCode, userLangCode, chatIDStr).Scan(&lastMessage, &lastMessageTime)
+		lastMessageErr := pg.db.QueryRow(ctx, lastMessageQuery, userLangCode, chatIDStr).Scan(&lastMessage, &lastMessageTime)
 		
 		//lastmsg_err := row.Scan(&lastMessage, &lastMessageTime)
-		if lastMessageErr != nil {
+		if lastMessageErr != nil && lastMessageErr != pgx.ErrNoRows {
 			return nil, fmt.Errorf("unable to query last chat message: %w", lastMessageErr)
 		}
+
 		chatResponse.LastMessage = lastMessage
 		chatResponse.LastMessageTime = lastMessageTime
+
+		// bug fixing last message not updating
+		log.Println(chatResponse.LastMessage)
 
 		// append ChatResponse into []ChatResponse
 		chatResponseArray = append(chatResponseArray, chatResponse)
@@ -369,7 +394,7 @@ func (pg *postgres) CreateInvite(ctx context.Context, userID string) (string, er
 
 	// create exp date of 7 days from now
 	now := time.Now().UTC()
-	expDate := now.AddDate(0,0,7)
+	expDate := now.AddDate(0,0,1)
 
 
 	_, err = pg.db.Exec(ctx, createInviteQuery, inviteUUID.String(), inviteCode, nil , userID, now, expDate, false, nil )
@@ -378,6 +403,71 @@ func (pg *postgres) CreateInvite(ctx context.Context, userID string) (string, er
 	}
 	
 	return inviteCode.String(), nil
+
+}
+
+// GetInviteExists retrieves an invite row
+// if no invite row exists then it returns 
+func (pg *postgres) GetInviteDetails(ctx context.Context, inviteCode string) (models.InviteResponse, error) {
+
+
+
+	inviteExistsQuery := `SELECT u.username, i.exp_date::TEXT, i.consumed
+		FROM user_account u
+		JOIN invite i ON i.creator_id = u.id
+		WHERE i.invite_code = $1`
+
+	var inviteResult struct {
+		username 	string
+		exp_date 	time.Time
+		consumed	bool
+	}
+
+	var expDateStr string
+	err := pg.db.QueryRow(ctx, inviteExistsQuery, inviteCode).Scan(&inviteResult.username, &expDateStr, &inviteResult.consumed )
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return models.InviteResponse{}, fmt.Errorf("invite not found: %w", err)
+		}
+		return models.InviteResponse{}, fmt.Errorf("unable to scan row: %w", err)
+	}
+
+	// convert expDateStr to time.Time
+	inviteResult.exp_date, err = time.Parse("2006-01-02 15:04:05.999999-07", expDateStr)
+	if err != nil {
+		log.Printf("Failed to convert expDateStr to time.Time: %v", err)
+		return models.InviteResponse{}, fmt.Errorf("failed to convert exp_date into proper format")
+	}
+
+	// log time conversion
+	log.Printf("expDateStr: %s", expDateStr)
+	log.Printf("inviteResult.exp_date: %s", inviteResult.exp_date)
+
+	// validate if invite is already consumed
+	if inviteResult.consumed {
+		log.Printf("InviteCode %s already consumed", inviteCode)
+		return models.InviteResponse{} ,fmt.Errorf("invite already consumed")
+	}
+
+	// validate exp_date of invite
+	if inviteResult.exp_date.Before(time.Now()) {
+		log.Printf("InviteCode %s has expired", inviteCode)
+		return models.InviteResponse{}, fmt.Errorf("invite has expired")
+	}
+
+	// validate username
+	if inviteResult.username == "" {
+		log.Println("Required username field is empty or missing")
+		return models.InviteResponse{}, fmt.Errorf("username empty or missing")
+	}
+
+	inviteResponse := models.InviteResponse {
+		InviteExists: true,
+		InviteCode: inviteCode,
+		Username: inviteResult.username,
+	}
+
+	return inviteResponse, nil
 
 }
 
