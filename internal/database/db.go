@@ -313,9 +313,10 @@ func (pg *postgres) CreateMessage(ctx context.Context, newMessage *models.Messag
 
 	query := `INSERT INTO message (id, chat_id, sender_id, content, created_at, lang_code) VALUES ($1::UUID, $2::UUID, $3, $4, $5, $6)`
 
+	newMessage.CreatedAt =  time.Now().UTC()
 
 	_, err = pg.db.Exec(ctx, query,
-		newMessage.ID.String(), newMessage.ChatID.String(), newMessage.SenderID, newMessage.Content, time.Now(), newMessage.LangCode)
+		newMessage.ID.String(), newMessage.ChatID.String(), newMessage.SenderID, newMessage.Content, newMessage.CreatedAt, newMessage.LangCode)
 	if err != nil {
 		return models.MessageResponse{} ,fmt.Errorf("unable to insert new user row: %w", err)
 	}
