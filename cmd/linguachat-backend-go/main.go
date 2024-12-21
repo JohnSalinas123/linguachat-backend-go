@@ -58,11 +58,13 @@ func main() {
 	authorized := router.Group("/api")
 	authorized.Use(clerk.ClerkAuthMiddleware()) 
 	{
-		authorized.POST("/users", handler.GetUsersHandler)
 		authorized.POST("/user/language", handler.SetUserLanguageHandler)
+		authorized.POST("/chats/invites", handler.PostNewInviteHandler)
+		authorized.POST("/chats", handler.PostAcceptChatInviteHandler)
 
 		authorized.GET("/chats", handler.GetChatsHandler)
 		authorized.GET("/chats/:chatID/messages", handler.GetChatMessagesHandler)
+		authorized.GET("/chats/invites/:inviteCode", handler.GetInviteExistsHandler)
 		
 	}
 
