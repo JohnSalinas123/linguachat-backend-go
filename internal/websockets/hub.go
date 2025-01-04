@@ -1,10 +1,13 @@
 package websockets
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 
+	"github.com/JohnSalinas123/linguachat-backend-go/internal/database"
 	"github.com/JohnSalinas123/linguachat-backend-go/internal/models"
+	"github.com/JohnSalinas123/linguachat-backend-go/internal/translation"
 	"github.com/gofrs/uuid"
 )
 
@@ -75,21 +78,55 @@ func (h *Hub) Run() {
 			chat := h.chats[message.ChatID]
 			if chat != nil {
 
-				messageBytes, err := json.Marshal(message)
-				if err !=nil {
-					log.Printf("Failed to convert message to []bytes: %v", err)
-					continue
-				}
-
 
 				for client := range chat { 
+					go func(client *Client) {
 
-					select {
-						case client.send <- messageBytes:
-						default:
-							close(client.send)
-							delete(chat, client)
-					}
+						clientMessage := message
+
+						log.Printf("MessageLangCode: %s   ClientLangCode: %s", message.LangCode, client.langCode )
+
+						if message.LangCode != client.langCode {
+							
+							// attempt to translate message
+							translationResponse, err := translation.TranslateMessage(message.Content, message.LangCode, client.langCode)
+							if err != nil {
+								log.Printf("Failed to translate message %s for client %s: %v", message.ID, client.userID, err)
+							} else {
+
+								
+
+								// attempt to create translation row in db
+								db := database.GetPostgresConn()
+								newTranslation, err := db.PostNewTranslation(context.Background(), message.ID, translationResponse.LangCode, translationResponse.Translation)
+								if err != nil {
+									log.Printf("Failed to create translation row for message %s: %v", message.ID, err)
+								} else {
+									// update message content with translated content
+									clientMessage.LangCode = newTranslation.LangCode
+									clientMessage.Content = newTranslation.Content
+									clientMessage.CreatedAt = newTranslation.CreatedAt
+								}
+
+							}
+
+						} 
+						
+						messageBytes, err := json.Marshal(clientMessage)
+						if err != nil {
+							log.Printf("Failed to marshal translated message for client %s: %v", client.userID, err)
+							return
+						}
+
+						select {
+							case client.send <- messageBytes:
+							default:
+								close(client.send)
+								delete(chat, client)
+						}
+
+					}(client)
+	
 				}
 				if len(chat) == 0 {
 					// chat emptied when broadcasting
