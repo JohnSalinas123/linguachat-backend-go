@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -141,7 +142,6 @@ func ServeWs(hub *Hub, c *gin.Context, userID string) {
 		return
 	}
 
-
 	chatID, err := uuid.FromString(chatIDStr)
 	if err != nil {
 		log.Println("Failed to convert chatIDStr to uuid: %w", err)
@@ -149,6 +149,16 @@ func ServeWs(hub *Hub, c *gin.Context, userID string) {
 		return
 	}
 
+	db := database.GetPostgresConn()
+	userLangCode, err := db.GetUserLangCode(context.Background(), userID)
+	if err != nil {
+		log.Printf("Failed to fetch landCode for user %s: %v", userID, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal Server Error"})
+		return
+	}
+
+	userLangCodeStr := fmt.Sprintf("{%s}", userLangCode)
+	
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println("Websocket upgrade error:", err)
@@ -156,7 +166,7 @@ func ServeWs(hub *Hub, c *gin.Context, userID string) {
 		return
 	}
 
-	client := &Client{userID: userID, chatID: chatID, hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client := &Client{userID: userID, chatID: chatID, langCode: userLangCodeStr, hub: hub, conn: conn, send: make(chan []byte, 256)}
 	client.hub.register <- client
 
 	// goroutines
