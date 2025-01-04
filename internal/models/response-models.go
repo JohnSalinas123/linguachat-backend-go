@@ -30,3 +30,8 @@ type InviteResponse struct {
 	Username 			string	`json:"username"`
 }
 
+type TranslationResponse struct {
+	Timestamp 	time.Time 	`json:"timestamp"`
+	Translation string 		`json:"translation"`
+	LangCode	string		`json:"lang_code"`
+}
