@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/JohnSalinas123/linguachat-backend-go/internal/models"
 	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v5"
 )
@@ -82,5 +83,30 @@ func (pg *postgres) PostNewChatFromInvite(ctx context.Context, userID string, in
 	}
 
 	return true, nil
+
+}
+
+func (pg *postgres) PostNewTranslation(ctx context.Context, messageID uuid.UUID, messageLang string, messageContent string) (models.Translation, error) {
+
+	newTranslationQuery := `INSERT INTO translation (message_id, lang_code, content, created_at) VALUES ($1::UUID, $2, $3, $4)`
+
+	now := time.Now().UTC()
+
+	langCodeStr := fmt.Sprintf("{%s}", messageLang)
+
+	_, err := pg.db.Exec(ctx, newTranslationQuery, messageID.String(), langCodeStr, messageContent, now)
+	if err != nil {
+		return models.Translation{}, fmt.Errorf("unable to insert new translation: %w", err)
+	}
+
+	// create new Translation object
+	newTranslation := models.Translation{
+		MessageID : messageID,
+		LangCode : messageLang,
+		Content: messageContent,
+		CreatedAt: now,
+	}
+
+	return newTranslation, nil
 
 }

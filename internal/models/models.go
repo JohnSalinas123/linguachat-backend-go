@@ -47,3 +47,10 @@ type CreateChatInvite struct {
 	Consumed	bool			`json:"consumed"`
 	ConsumedAt	sql.NullTime	`json:"consumed_at"`
 }
+
+type Translation struct {
+	MessageID 	uuid.UUID	`json:"message_id"`
+	LangCode	string		`json:"lang_code"`
+	Content		string		`json:"content"`
+	CreatedAt	time.Time	`json:"created_at"`
+}
